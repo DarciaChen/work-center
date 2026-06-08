@@ -501,12 +501,7 @@ const firebaseConfig = {
 
 // ── 你的 Google UID（登入後自動填入，用來判斷是否顯示開發者介面）──
 // 第一次登入後會在 console 印出你的 UID，填到這裡
-// 開發者 UID 列表（可加多個）
-const DEV_UIDS = [
-  '8wEJx3sD1gPbtOqw1yR6Bk82YtH2',
-  localStorage.getItem('wc_dev_uid')
-].filter(Boolean);
-const DEV_UID = DEV_UIDS[0];
+// 開發者身份由 Firestore 的 role 欄位決定，不依賴 UID 硬編碼
 
 const fbApp  = initializeApp(firebaseConfig);
 const auth   = getAuth(fbApp);
@@ -554,9 +549,14 @@ window.signOut = async () => {
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user;
-    isDev = DEV_UIDS.includes(user.uid);
     console.log('[WC] UID:', user.uid);
-    console.log('[WC] DEV_UID:', DEV_UID);
+    // 從 Firestore 查詢角色
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      isDev = snap.exists() && snap.data().role === 'dev';
+    } catch(_) {
+      isDev = false;
+    }
     console.log('[WC] isDev:', isDev);
     await onUserLogin(user);
   } else {
