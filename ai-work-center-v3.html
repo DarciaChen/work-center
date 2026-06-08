@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>作戰中心</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f0f0f; --bg2:#171717; --bg3:#202020;
+  --border:#2a2a2a; --border2:#3a3a3a;
+  --text:#e8e8e8; --text2:#999; --text3:#555;
+  --accent:#c8ff00; --accent-dim:#8fb300;
+  --blue:#4fc3f7; --purple:#a78bfa; --red:#ff4757;
+  --green:#69db7c; --amber:#ffd43b;
+  --font-ui:'Noto Sans TC',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+  --r:10px; --r-sm:6px; --tr:0.15s ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:15px;overscroll-behavior:none}
+button{font-family:var(--font-ui);cursor:pointer;border:none;background:none}
+input,textarea,select{font-family:var(--font-ui);color:var(--text)}
+
+/* ── SHELL ── */
+.app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;border-left:.5px solid var(--border);border-right:.5px solid var(--border)}
+@media(min-width:480px){.app{box-shadow:0 0 80px rgba(0,0,0,.9)}}
+
+/* ── LOGIN SCREEN ── */
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:32px;background:var(--bg)}
+.login-logo{font-family:var(--font-mono);font-size:28px;color:var(--accent);margin-bottom:8px;letter-spacing:.05em}
+.login-sub{font-size:13px;color:var(--text3);margin-bottom:48px}
+.google-signin-btn{display:flex;align-items:center;gap:12px;padding:14px 24px;background:#fff;border-radius:var(--r);font-size:15px;font-weight:500;color:#3c4043;cursor:pointer;border:none;transition:box-shadow var(--tr);width:100%;max-width:320px;justify-content:center}
+.google-signin-btn:hover{box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.google-signin-btn img{width:22px;height:22px}
+.login-note{font-size:11px;color:var(--text3);margin-top:20px;text-align:center;line-height:1.7}
+
+/* ── TOPBAR ── */
+.topbar{padding:12px 16px 10px;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--bg)}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.logo{font-family:var(--font-mono);font-size:13px;color:var(--accent);letter-spacing:.05em}
+.version-badge{font-size:10px;font-family:var(--font-mono);color:var(--text3);background:var(--bg3);padding:2px 7px;border-radius:10px;border:.5px solid var(--border2)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);animation:pulse 2s infinite}
+.status-dot.on{background:var(--accent)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;overflow:hidden}
+.user-avatar img{width:100%;height:100%;object-fit:cover}
+.date-label{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+
+/* ── TABS ── */
+.tabs{display:flex;padding:0 16px;border-bottom:.5px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none;background:var(--bg)}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:10px 12px;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all var(--tr);white-space:nowrap}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab:hover:not(.active){color:var(--text2)}
+.tab-badge{display:inline-block;background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;margin-left:4px;vertical-align:middle;font-family:var(--font-mono)}
+.tab.dev-tab{color:var(--purple)}
+.tab.dev-tab.active{color:var(--purple);border-bottom-color:var(--purple)}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.main::-webkit-scrollbar{width:3px}
+.main::-webkit-scrollbar-thumb{background:var(--border)}
+.page{display:none;padding:16px}
+.page.active{display:block}
+
+/* ── COMPONENTS ── */
+.capture-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:14px;margin-bottom:16px}
+.capture-label{font-size:10px;color:var(--accent);font-family:var(--font-mono);margin-bottom:8px;letter-spacing:.1em}
+.capture-input{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-size:14px;resize:none;min-height:52px;line-height:1.6}
+.capture-input::placeholder{color:var(--text3)}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tag{padding:4px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:.5px solid var(--border2);color:var(--text3);transition:all var(--tr)}
+.tag:hover,.tag.sel{background:var(--bg3);color:var(--text)}
+.tag.sel[data-tag="供應鏈"]{border-color:var(--blue);color:var(--blue)}
+.tag.sel[data-tag="業務"]{border-color:var(--purple);color:var(--purple)}
+.tag.sel[data-tag="行政"]{border-color:var(--amber);color:var(--amber)}
+.tag.sel[data-tag="緊急"]{border-color:var(--red);color:var(--red)}
+.tag.sel[data-tag="個人"]{border-color:var(--green);color:var(--green)}
+.capture-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+
+.btn{padding:7px 14px;border-radius:var(--r-sm);font-size:12px;font-weight:500;transition:all var(--tr);white-space:nowrap}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{opacity:.85}
+.btn-ghost{background:transparent;color:var(--text2);border:.5px solid var(--border2)}
+.btn-ghost:hover{background:var(--bg3)}
+.btn-blue{background:transparent;color:var(--blue);border:.5px solid var(--blue)}
+.btn-blue:hover{background:rgba(79,195,247,.1)}
+.btn-red{background:transparent;color:var(--red);border:.5px solid var(--red)}
+.btn-purple{background:transparent;color:var(--purple);border:.5px solid var(--purple)}
+.btn-sm{padding:4px 10px;font-size:11px}
+
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;margin-top:4px}
+.section-title{font-size:10px;font-family:var(--font-mono);color:var(--text3);letter-spacing:.1em}
+.count-badge{font-size:10px;background:var(--bg3);color:var(--text3);padding:2px 8px;border-radius:10px;font-family:var(--font-mono)}
+
+.task-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;min-height:4px}
+.task-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:12px 14px;cursor:pointer;transition:border-color var(--tr);position:relative;overflow:hidden}
+.task-card:hover{border-color:var(--border2)}
+.task-card.done{opacity:.4}
+.task-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.task-card[data-cat="供應鏈"]::before{background:var(--blue)}
+.task-card[data-cat="業務"]::before{background:var(--purple)}
+.task-card[data-cat="行政"]::before{background:var(--amber)}
+.task-card[data-cat="緊急"]::before{background:var(--red)}
+.task-card[data-cat="個人"]::before{background:var(--green)}
+.task-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.task-title{font-size:13px;font-weight:500;color:var(--text);line-height:1.4;flex:1}
+.task-card.done .task-title{text-decoration:line-through;color:var(--text3)}
+.task-meta{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
+.task-cat-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-family:var(--font-mono)}
+.task-cat-badge[data-cat="供應鏈"]{background:rgba(79,195,247,.12);color:var(--blue)}
+.task-cat-badge[data-cat="業務"]{background:rgba(167,139,250,.12);color:var(--purple)}
+.task-cat-badge[data-cat="行政"]{background:rgba(255,212,59,.12);color:var(--amber)}
+.task-cat-badge[data-cat="緊急"]{background:rgba(255,71,87,.15);color:var(--red)}
+.task-cat-badge[data-cat="個人"]{background:rgba(105,219,124,.12);color:var(--green)}
+.task-cat-badge[data-cat="一般"]{background:var(--bg3);color:var(--text3)}
+.task-time{font-size:10px;color:var(--text3);font-family:var(--font-mono)}
+.task-pri{font-size:10px;font-family:var(--font-mono)}
+.pri-high{color:var(--red)}.pri-mid{color:var(--amber)}.pri-low{color:var(--text3)}
+.check-btn{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all var(--tr);color:transparent;font-size:10px}
+.check-btn.done{background:var(--accent);border-color:var(--accent);color:#000}
+.task-expanded{display:none;border-top:.5px solid var(--border);margin-top:8px;padding-top:8px}
+.task-card.expanded .task-expanded{display:flex;gap:6px;flex-wrap:wrap}
+
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+.stat-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:14px}
+.stat-num{font-size:28px;font-weight:700;font-family:var(--font-mono);line-height:1}
+.stat-label{font-size:11px;color:var(--text3);margin-top:4px}
+.stat-card.s-urgent .stat-num{color:var(--red)}
+.stat-card.s-pending .stat-num{color:var(--amber)}
+.stat-card.s-done .stat-num{color:var(--green)}
+.stat-card.s-total .stat-num{color:var(--accent)}
+
+.module-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+.mod-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:14px;cursor:pointer;transition:border-color var(--tr)}
+.mod-card:hover{border-color:var(--border2)}
+.mod-icon{font-size:22px;margin-bottom:8px}
+.mod-name{font-size:13px;font-weight:500;margin-bottom:2px}
+.mod-sub{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+
+.activity-item{padding:10px 0;border-bottom:.5px solid var(--border);display:flex;gap:10px;align-items:flex-start}
+.activity-item:last-child{border-bottom:none}
+.act-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.act-text{font-size:12px;color:var(--text2);line-height:1.5;flex:1}
+.act-time{font-size:10px;color:var(--text3);font-family:var(--font-mono);flex-shrink:0}
+
+/* ── CHAT ── */
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 112px)}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.chat-messages::-webkit-scrollbar{width:3px}
+.msg{max-width:88%;line-height:1.6}
+.msg-user{align-self:flex-end;background:var(--bg3);border:.5px solid var(--border2);border-radius:var(--r) var(--r) 2px var(--r);padding:10px 14px;font-size:13px}
+.msg-ai{align-self:flex-start;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r) var(--r) var(--r) 2px;padding:10px 14px;font-size:13px}
+.ai-label{font-size:10px;font-family:var(--font-mono);color:var(--accent);margin-bottom:6px;letter-spacing:.08em}
+.ai-body{color:var(--text);white-space:normal;line-height:1.7}
+.ai-body strong{color:var(--text);font-weight:600}
+.ai-body em{color:var(--text2);font-style:italic}
+.ai-body ul{padding-left:6px;margin:6px 0;display:flex;flex-direction:column;gap:3px;list-style:none}
+.ai-body li{padding-left:14px;position:relative;line-height:1.6}
+.ai-body li::before{content:'·';position:absolute;left:2px;color:var(--accent);font-weight:700}
+.ai-body h3,.ai-body h4{font-size:13px;font-weight:600;color:var(--accent);margin:10px 0 4px}
+.ai-body hr{border:none;border-top:.5px solid var(--border2);margin:10px 0}
+.ai-body code{font-family:var(--font-mono);font-size:11px;background:var(--bg3);padding:1px 6px;border-radius:4px;color:var(--blue)}
+.typing-dots{display:flex;gap:4px;padding:14px}
+.typing-dots span{width:5px;height:5px;background:var(--text3);border-radius:50%;animation:bounce 1.2s infinite}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+.quick-prompts{display:flex;gap:6px;padding:8px 16px 2px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.quick-prompts::-webkit-scrollbar{display:none}
+.qp{flex-shrink:0;font-size:11px;padding:5px 11px;border-radius:16px;background:var(--bg2);border:.5px solid var(--border);color:var(--text2);cursor:pointer;transition:all var(--tr);white-space:nowrap}
+.qp:hover{border-color:var(--accent);color:var(--accent)}
+.chat-input-area{padding:10px 16px;border-top:.5px solid var(--border);background:var(--bg);display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+.chat-textarea{flex:1;background:var(--bg2);border:.5px solid var(--border2);border-radius:var(--r);padding:10px 12px;color:var(--text);font-size:13px;resize:none;outline:none;min-height:40px;max-height:120px;line-height:1.5}
+.chat-textarea::placeholder{color:var(--text3)}
+.chat-send{width:36px;height:36px;border-radius:var(--r-sm);background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity var(--tr)}
+.chat-send:hover{opacity:.85}
+.chat-send svg{width:15px;height:15px}
+
+/* ── SETTINGS / INFO ── */
+.settings-section{margin-bottom:24px}
+.settings-title{font-size:10px;font-family:var(--font-mono);color:var(--text3);letter-spacing:.1em;margin-bottom:12px}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:.5px solid var(--border);font-size:13px}
+.settings-row:last-child{border-bottom:none}
+.settings-row-label{color:var(--text2)}
+.settings-row-value{color:var(--text);font-family:var(--font-mono);font-size:12px}
+.info-box{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:14px;font-size:12px;color:var(--text2);line-height:1.7}
+
+/* ── DEV PANEL ── */
+.dev-banner{background:rgba(167,139,250,.08);border:.5px solid rgba(167,139,250,.3);border-radius:var(--r-sm);padding:8px 14px;font-size:11px;color:var(--purple);font-family:var(--font-mono);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.user-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);margin-bottom:8px}
+.user-row-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.user-row-info{flex:1}
+.user-row-name{font-size:13px;font-weight:500}
+.user-row-meta{font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:2px}
+.user-row-stats{display:flex;gap:12px;margin-top:8px}
+.user-stat{font-size:11px;color:var(--text3);font-family:var(--font-mono)}
+.user-stat span{color:var(--text2)}
+.activity-log{display:flex;flex-direction:column;gap:6px}
+.log-item{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-size:12px}
+.log-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.log-user{color:var(--purple);font-family:var(--font-mono);font-size:10px}
+.log-time{color:var(--text3);font-family:var(--font-mono);font-size:10px}
+.log-text{color:var(--text2);line-height:1.4}
+
+/* ── PROFILE CARD ── */
+.profile-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:16px;display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.profile-avatar{width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.profile-info .profile-name{font-size:15px;font-weight:700}
+.profile-info .profile-email{font-size:12px;color:var(--text3);margin-top:2px}
+.profile-info .profile-since{font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:4px}
+.sync-status-row{display:flex;align-items:center;gap:8px;font-size:11px;font-family:var(--font-mono);margin-top:8px}
+.sync-dot{width:6px;height:6px;border-radius:50%}
+.sync-dot.synced{background:var(--green)}
+.sync-dot.syncing{background:var(--amber)}
+.sync-dot.error{background:var(--red)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:.5px solid var(--border2);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;padding:20px}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-title{font-size:15px;font-weight:700}
+.modal-close{color:var(--text3);font-size:22px;line-height:1}
+.field{margin-bottom:14px}
+.field label{font-size:10px;color:var(--text3);font-family:var(--font-mono);display:block;margin-bottom:6px;letter-spacing:.06em}
+.field input,.field textarea,.field select{width:100%;background:var(--bg3);border:.5px solid var(--border2);border-radius:var(--r-sm);padding:9px 11px;font-size:13px;outline:none}
+.field textarea{resize:none;min-height:70px;line-height:1.5}
+.field select option{background:var(--bg3)}
+.modal-actions{display:flex;gap:8px;margin-top:16px}
+
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty .e-icon{font-size:32px;margin-bottom:12px}
+.empty p{font-size:13px;line-height:1.7}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg3);border:.5px solid var(--border2);border-radius:var(--r-sm);padding:9px 18px;font-size:12px;font-family:var(--font-mono);color:var(--accent);z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+
+.ext-banner{display:none;background:rgba(79,195,247,.08);border:.5px solid rgba(79,195,247,.3);border-radius:var(--r-sm);padding:8px 12px;font-size:11px;color:var(--blue);font-family:var(--font-mono);margin-bottom:12px}
+.ext-banner.show{display:block}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-logo">作戰中心</div>
+  <div class="login-sub">Work Command Center</div>
+  <button class="google-signin-btn" onclick="googleSignIn()">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+    使用 Google 帳號登入
+  </button>
+  <div class="login-note">登入後資料自動同步至雲端<br>可在任何裝置使用</div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div class="app" id="mainApp" style="display:none">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">作戰中心</div>
+      <div class="version-badge" id="versionBadge">v2.0.0</div>
+    </div>
+    <div class="topbar-right">
+      <span class="date-label" id="dateLabel"></span>
+      <div class="status-dot" id="statusDot"></div>
+      <div class="user-avatar" id="userAvatar" onclick="switchTab('account')">👤</div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabBar">
+    <div class="tab active" data-page="overview">總覽</div>
+    <div class="tab" data-page="tasks">任務 <span class="tab-badge" id="urgentBadge" style="display:none">0</span></div>
+    <div class="tab" data-page="chat">AI 對話</div>
+    <div class="tab" data-page="supply">供應鏈</div>
+    <div class="tab" data-page="sales">業務</div>
+    <div class="tab" data-page="account">帳號</div>
+    <!-- 開發者 tab，只有你看得到 -->
+    <div class="tab dev-tab" data-page="dev" id="devTab" style="display:none">⚙ 開發者</div>
+  </div>
+
+  <div class="main">
+
+    <!-- ── OVERVIEW ── -->
+    <div class="page active" id="page-overview">
+      <div class="stat-grid">
+        <div class="stat-card s-urgent"><div class="stat-num" id="stat-urgent">0</div><div class="stat-label">🔴 緊急待辦</div></div>
+        <div class="stat-card s-pending"><div class="stat-num" id="stat-pending">0</div><div class="stat-label">⏳ 進行中</div></div>
+        <div class="stat-card s-done"><div class="stat-num" id="stat-done">0</div><div class="stat-label">✅ 今日完成</div></div>
+        <div class="stat-card s-total"><div class="stat-num" id="stat-total">0</div><div class="stat-label">📋 全部任務</div></div>
+      </div>
+      <div class="section-header"><span class="section-title">MODULES</span></div>
+      <div class="module-grid">
+        <div class="mod-card" onclick="switchTab('tasks')"><div class="mod-icon">📋</div><div class="mod-name">任務管理</div><div class="mod-sub" id="mod-tasks">—</div></div>
+        <div class="mod-card" onclick="switchTab('chat')"><div class="mod-icon">🤖</div><div class="mod-name">AI 對話</div><div class="mod-sub" id="mod-ai">就緒</div></div>
+        <div class="mod-card" onclick="switchTab('supply')"><div class="mod-icon">🚚</div><div class="mod-name">供應鏈</div><div class="mod-sub" id="mod-supply">—</div></div>
+        <div class="mod-card" onclick="switchTab('sales')"><div class="mod-icon">📈</div><div class="mod-name">業務跟進</div><div class="mod-sub" id="mod-sales">—</div></div>
+      </div>
+      <div class="section-header"><span class="section-title">RECENT ACTIVITY</span></div>
+      <div id="activity-list"><div class="empty"><div class="e-icon">📭</div><p>還沒有記錄</p></div></div>
+    </div>
+
+    <!-- ── TASKS ── -->
+    <div class="page" id="page-tasks">
+      <div class="ext-banner" id="extBanner">⚡ 擴充套件已連線 — 可直接送到 Gemini</div>
+      <div class="capture-box">
+        <div class="capture-label">⚡ QUICK CAPTURE</div>
+        <textarea class="capture-input" id="captureInput" placeholder="任何事情都丟進來：任務、問題、突發狀況…" rows="3"></textarea>
+        <div class="tag-row" id="tagRow">
+          <span class="tag" data-tag="供應鏈">🚚 供應鏈</span>
+          <span class="tag" data-tag="業務">📈 業務</span>
+          <span class="tag" data-tag="行政">📁 行政</span>
+          <span class="tag" data-tag="緊急">🔴 緊急</span>
+          <span class="tag" data-tag="個人">⭐ 個人</span>
+        </div>
+        <div class="capture-actions">
+          <button class="btn btn-primary" onclick="captureTask()">收進來</button>
+          <button class="btn btn-ghost" onclick="captureAndChat()">＋ AI 分析</button>
+          <button class="btn btn-blue btn-sm" onclick="captureAndSendGemini()">🚀 跳轉 Gemini 無限版</button>
+        </div>
+      </div>
+      <div class="section-header"><span class="section-title">URGENT</span><span class="count-badge" id="cnt-urgent">0</span></div>
+      <div class="task-list" id="list-urgent"></div>
+      <div class="section-header"><span class="section-title">IN PROGRESS</span><span class="count-badge" id="cnt-progress">0</span></div>
+      <div class="task-list" id="list-progress"></div>
+      <div class="section-header"><span class="section-title">COMPLETED</span><span class="count-badge" id="cnt-done">0</span></div>
+      <div class="task-list" id="list-done"></div>
+    </div>
+
+    <!-- ── CHAT ── -->
+    <div class="page" id="page-chat" style="padding:0">
+      <div class="chat-wrap">
+        <div class="chat-messages" id="chatMessages">
+          <div class="msg msg-ai">
+            <div class="ai-label">AI 助理</div>
+            <div class="ai-body">你好！我是你的 AI 工作助理。可以問我任何工作問題，或直接把狀況描述給我分析。</div>
+          </div>
+        </div>
+        <div class="quick-prompts">
+          <div class="qp" onclick="sendQuick('供應商延期，我要怎麼跟客戶說明？')">供應商延期怎麼說</div>
+          <div class="qp" onclick="sendQuick('幫我整理今天的任務優先順序')">整理任務優先序</div>
+          <div class="qp" onclick="sendQuick('客戶突然要改規格，我應該怎麼應對？')">客戶臨時改規格</div>
+          <div class="qp" onclick="sendQuick('幫我起草一封跟供應商催貨的Email')">寫催貨 Email</div>
+          <div class="qp" onclick="sendQuick('同事犯了錯影響到客戶，我要怎麼救火？')">同事疏失救火</div>
+        </div>
+        <div class="chat-input-area">
+          <textarea class="chat-textarea" id="chatInput" placeholder="輸入任何問題或狀況…" rows="1" onkeydown="chatEnter(event)" oninput="autoResize(this)"></textarea>
+          <button class="chat-send" onclick="sendChat()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SUPPLY ── -->
+    <div class="page" id="page-supply">
+      <div class="capture-box">
+        <div class="capture-label">🚚 供應鏈快速記錄</div>
+        <textarea class="capture-input" id="supplyInput" placeholder="例：供應商B，訂單#123，原定5/20，延至5/27" rows="2"></textarea>
+        <div class="capture-actions">
+          <button class="btn btn-primary" onclick="addItem('supply')">新增追蹤</button>
+          <button class="btn btn-ghost" onclick="askAI('supply')">AI 分析風險</button>
+          <button class="btn btn-blue btn-sm" onclick="sendToGeminiDirect('supply')">🚀 Gemini 無限版</button>
+        </div>
+      </div>
+      <div class="section-header"><span class="section-title">TRACKING</span><span class="count-badge" id="cnt-supply">0</span></div>
+      <div class="task-list" id="list-supply"><div class="empty"><div class="e-icon">🚚</div><p>還沒有供應鏈記錄</p></div></div>
+    </div>
+
+    <!-- ── SALES ── -->
+    <div class="page" id="page-sales">
+      <div class="capture-box">
+        <div class="capture-label">📈 業務快速記錄</div>
+        <textarea class="capture-input" id="salesInput" placeholder="例：客戶C公司，下週要報價，需確認規格" rows="2"></textarea>
+        <div class="capture-actions">
+          <button class="btn btn-primary" onclick="addItem('sales')">新增跟進</button>
+          <button class="btn btn-ghost" onclick="askAI('sales')">AI 出策略</button>
+          <button class="btn btn-blue btn-sm" onclick="sendToGeminiDirect('sales')">🚀 Gemini 無限版</button>
+        </div>
+      </div>
+      <div class="section-header"><span class="section-title">FOLLOW-UP</span><span class="count-badge" id="cnt-sales">0</span></div>
+      <div class="task-list" id="list-sales"><div class="empty"><div class="e-icon">📈</div><p>還沒有業務記錄</p></div></div>
+    </div>
+
+    <!-- ── ACCOUNT ── -->
+    <div class="page" id="page-account">
+      <div id="profileCard" class="profile-card">
+        <img class="profile-avatar" id="profileAvatar" src="" alt="">
+        <div class="profile-info">
+          <div class="profile-name" id="profileName">—</div>
+          <div class="profile-email" id="profileEmail">—</div>
+          <div class="profile-since" id="profileSince">—</div>
+          <div class="sync-status-row">
+            <div class="sync-dot synced" id="syncDot"></div>
+            <span id="syncLabel" style="color:var(--text3)">—</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">
+        <button class="btn btn-ghost" onclick="manualSync()">🔄 立即同步</button>
+        <button class="btn btn-ghost" onclick="exportData()">📥 匯出備份</button>
+        <button class="btn btn-red" onclick="signOut()">登出</button>
+      </div>
+      <div class="settings-section">
+        <div class="settings-title">APP 資訊</div>
+        <div class="settings-row"><span class="settings-row-label">App 版本</span><span class="settings-row-value" id="accAppVer">—</span></div>
+        <div class="settings-row"><span class="settings-row-label">資料版本</span><span class="settings-row-value" id="accSchemaVer">—</span></div>
+        <div class="settings-row"><span class="settings-row-label">Chrome 擴充套件</span><span class="settings-row-value" id="accExtStatus">未偵測</span></div>
+      </div>
+    </div>
+
+    <!-- ── DEV PANEL ── -->
+    <div class="page" id="page-dev">
+      <div class="dev-banner">⚙ 開發者介面 — 僅限你可見</div>
+
+      <!-- Gemini Key 管理 -->
+      <div class="settings-section">
+        <div class="settings-title">GEMINI API KEY</div>
+        <div class="capture-box">
+          <input id="devGeminiKey" type="password" placeholder="貼上 Gemini API Key…"
+            style="width:100%;background:transparent;border:none;outline:none;font-size:13px;font-family:var(--font-mono);padding:4px 0">
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+            <button class="btn btn-primary btn-sm" onclick="saveGeminiKey()">儲存到雲端</button>
+            <span id="devKeyStatus" style="font-size:11px;font-family:var(--font-mono);color:var(--text3)"></span>
+          </div>
+        </div>
+        <div class="capture-box" style="margin-top:10px">
+          <div class="capture-label">模型</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+            <span class="tag" onclick="setModel('gemini-2.5-flash-lite')" id="m-lite">gemini-2.5-flash-lite</span>
+            <span class="tag" onclick="setModel('gemini-2.5-flash')" id="m-flash">gemini-2.5-flash</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono);margin-top:8px">目前：<span id="devModelLabel">—</span></div>
+        </div>
+      </div>
+
+      <!-- 使用者列表 -->
+      <div class="settings-section">
+        <div class="settings-title">使用者記錄</div>
+        <div id="devUserList"><div class="empty"><div class="e-icon">👥</div><p>還沒有使用者</p></div></div>
+      </div>
+
+      <!-- 全域活動記錄 -->
+      <div class="settings-section">
+        <div class="settings-title">最近活動 <span style="color:var(--text3);font-size:10px">（所有使用者）</span></div>
+        <div class="activity-log" id="devActivityLog"><div class="empty"><p>暫無記錄</p></div></div>
+      </div>
+
+      <!-- 危險區 -->
+      <div class="settings-section">
+        <div class="settings-title">系統</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="refreshDevPanel()">🔄 重新載入</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">新增任務</span><button class="modal-close" onclick="closeModal('addModal')">×</button></div>
+    <div class="field"><label>任務內容</label><textarea id="m-title" placeholder="描述這個任務…"></textarea></div>
+    <div class="field"><label>分類</label>
+      <select id="m-cat"><option value="一般">一般</option><option value="供應鏈">供應鏈</option><option value="業務">業務</option><option value="行政">行政</option><option value="緊急">緊急</option><option value="個人">個人</option></select>
+    </div>
+    <div class="field"><label>優先級</label>
+      <select id="m-pri"><option value="high">🔴 高</option><option value="mid">🟡 中</option><option value="low">⚪ 低</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="saveTaskModal()">儲存</button>
+      <button class="btn btn-ghost" onclick="closeModal('addModal')">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══ FIREBASE + APP SCRIPT ══ -->
+<script type="module">
+import { initializeApp }          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged }
+                                   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, onSnapshot, serverTimestamp, addDoc }
+                                   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ── Firebase config ──
+const firebaseConfig = {
+  apiKey:            "AIzaSyDChtPDasqdM0PsU4dwL6GTMP3Cw6LsOY4",
+  authDomain:        "work-center-4c386.firebaseapp.com",
+  projectId:         "work-center-4c386",
+  storageBucket:     "work-center-4c386.firebasestorage.app",
+  messagingSenderId: "970323432341",
+  appId:             "1:970323432341:web:53da742d5d1e5fe31d1c9c"
+};
+
+// ── 你的 Google UID（登入後自動填入，用來判斷是否顯示開發者介面）──
+// 第一次登入後會在 console 印出你的 UID，填到這裡
+const DEV_UID = localStorage.getItem('wc_dev_uid') || '__YOUR_UID__';
+
+const fbApp  = initializeApp(firebaseConfig);
+const auth   = getAuth(fbApp);
+const db     = getFirestore(fbApp);
+const provider = new GoogleAuthProvider();
+
+// ══════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════
+const APP_VERSION    = '2.0.0';
+const SCHEMA_VERSION = 2;
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let currentUser  = null;
+let isDev        = false;
+let DB           = null;
+let selectedTag  = '';
+let chatHistory  = [];
+let extInstalled = false;
+let geminiKey    = '';
+let geminiModel  = 'gemini-2.5-flash-lite';
+let syncTimer    = null;
+let unsubSnapshot = null;
+
+// ══════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════
+window.googleSignIn = async () => {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch(e) {
+    showToast('⚠️ 登入失敗：' + e.message);
+  }
+};
+
+window.signOut = async () => {
+  if (!confirm('確定要登出？')) return;
+  if (unsubSnapshot) unsubSnapshot();
+  await fbSignOut(auth);
+  location.reload();
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    currentUser = user;
+    isDev = (user.uid === DEV_UID);
+    console.log('[WC] UID:', user.uid); // 第一次登入看這個，填到 DEV_UID
+    await onUserLogin(user);
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+  }
+});
+
+async function onUserLogin(user) {
+  // 顯示 App
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'flex';
+
+  // 更新 UI
+  initUI();
+  updateProfileUI(user);
+  if (isDev) showDevMode();
+
+  // 載入資料
+  await loadOrCreateUserData(user);
+  await loadGeminiConfig();
+  setupRealtimeSync(user.uid);
+  detectExtension();
+  renderAll();
+}
+
+// ══════════════════════════════════════════════
+// FIRESTORE DATA
+// ══════════════════════════════════════════════
+function blankData(user) {
+  return {
+    _meta: { schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION, createdAt: now(), updatedAt: now() },
+    tasks: [], supplyItems: [], salesItems: [], activity: []
+  };
+}
+
+async function loadOrCreateUserData(user) {
+  const ref = doc(db, 'users', user.uid, 'data', 'main');
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    DB = migrateData(snap.data());
+  } else {
+    DB = blankData(user);
+    await setDoc(ref, DB);
+    // 記錄新使用者
+    await setDoc(doc(db, 'users', user.uid), {
+      uid: user.uid, name: user.displayName, email: user.email,
+      photo: user.photoURL, firstSeen: serverTimestamp(), lastSeen: serverTimestamp()
+    }, { merge: true });
+  }
+  // 更新最後上線
+  await setDoc(doc(db, 'users', user.uid), { lastSeen: serverTimestamp() }, { merge: true });
+}
+
+function setupRealtimeSync(uid) {
+  const ref = doc(db, 'users', uid, 'data', 'main');
+  unsubSnapshot = onSnapshot(ref, (snap) => {
+    if (snap.exists() && snap.metadata.hasPendingWrites === false) {
+      const remote = snap.data();
+      const remoteTime = new Date(remote?._meta?.updatedAt || 0);
+      const localTime  = new Date(DB?._meta?.updatedAt || 0);
+      if (remoteTime > localTime) {
+        DB = migrateData(remote);
+        renderAll();
+        setSyncStatus('synced', `✓ 已同步`);
+      }
+    }
+  });
+}
+
+async function saveDB() {
+  if (!currentUser || !DB) return;
+  DB._meta.updatedAt = now();
+  DB._meta.appVersion = APP_VERSION;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    try {
+      setSyncStatus('syncing', '儲存中…');
+      const ref = doc(db, 'users', currentUser.uid, 'data', 'main');
+      await setDoc(ref, DB);
+      setSyncStatus('synced', `✓ 已同步 ${fmtTime(now())}`);
+    } catch(e) {
+      setSyncStatus('error', '⚠️ 同步失敗');
+    }
+  }, 1500);
+  renderAll();
+}
+
+window.manualSync = async () => {
+  if (!currentUser) return;
+  setSyncStatus('syncing', '同步中…');
+  try {
+    const ref = doc(db, 'users', currentUser.uid, 'data', 'main');
+    await setDoc(ref, DB);
+    setSyncStatus('synced', `✓ 已同步`);
+    showToast('✅ 已同步');
+  } catch(e) { setSyncStatus('error', '⚠️ 失敗'); }
+};
+
+function migrateData(raw) {
+  let v = raw?._meta?.schemaVersion ?? 0;
+  if (v < 2) {
+    raw._meta = raw._meta || {};
+    raw._meta.schemaVersion = 2;
+    raw.tasks       = (raw.tasks       || []).map(t => ({ shared: false, ...t }));
+    raw.supplyItems = raw.supplyItems  || [];
+    raw.salesItems  = raw.salesItems   || [];
+    raw.activity    = raw.activity     || [];
+  }
+  return raw;
+}
+
+// Gemini config（存在開發者專屬文件）
+async function loadGeminiConfig() {
+  try {
+    const ref = doc(db, 'config', 'gemini');
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      geminiKey   = snap.data().key   || '';
+      geminiModel = snap.data().model || 'gemini-2.5-flash-lite';
+      updateDevKeyStatus();
+    }
+  } catch(e) { /* 非開發者沒有讀取權限是正常的 */ }
+}
+
+window.saveGeminiKey = async () => {
+  const key   = document.getElementById('devGeminiKey').value.trim();
+  if (!key) { showToast('請輸入 Key'); return; }
+  try {
+    await setDoc(doc(db, 'config', 'gemini'), { key, model: geminiModel, updatedAt: now() });
+    geminiKey = key;
+    updateDevKeyStatus();
+    showToast('✅ Key 已儲存到雲端');
+  } catch(e) { showToast('⚠️ 儲存失敗：' + e.message); }
+};
+
+window.setModel = async (model) => {
+  geminiModel = model;
+  try {
+    await setDoc(doc(db, 'config', 'gemini'), { model }, { merge: true });
+  } catch(_) {}
+  document.getElementById('devModelLabel').textContent = model;
+  ['m-lite','m-flash'].forEach(id => document.getElementById(id)?.classList.remove('sel'));
+  const selId = model.includes('lite') ? 'm-lite' : 'm-flash';
+  document.getElementById(selId)?.classList.add('sel');
+  showToast('✅ 模型已更新');
+};
+
+function updateDevKeyStatus() {
+  const el = document.getElementById('devKeyStatus');
+  if (el) { el.textContent = geminiKey ? '✓ 已設定' : '未設定'; el.style.color = geminiKey ? 'var(--green)' : 'var(--text3)'; }
+  const ml = document.getElementById('devModelLabel');
+  if (ml) ml.textContent = geminiModel;
+  const dot = document.getElementById('statusDot');
+  if (dot) dot.className = geminiKey ? 'status-dot on' : 'status-dot';
+  const aiMod = document.getElementById('mod-ai');
+  if (aiMod) aiMod.textContent = geminiKey ? 'API 已連線' : '未設定 Key';
+}
+
+// 活動記錄（寫到 Firestore 讓開發者看）
+async function logActivity(text, cat) {
+  if (!DB) return;
+  DB.activity = DB.activity || [];
+  DB.activity.unshift({ text, cat, ts: now() });
+  if (DB.activity.length > 30) DB.activity.pop();
+  // 同時寫一筆到全域 activity collection
+  try {
+    await addDoc(collection(db, 'activity'), {
+      uid: currentUser.uid,
+      name: currentUser.displayName,
+      text, cat, ts: serverTimestamp()
+    });
+  } catch(_) {}
+}
+
+// ══════════════════════════════════════════════
+// DEV PANEL
+// ══════════════════════════════════════════════
+function showDevMode() {
+  document.getElementById('devTab').style.display = '';
+}
+
+window.refreshDevPanel = async () => {
+  await loadDevUsers();
+  await loadDevActivity();
+};
+
+async function loadDevUsers() {
+  if (!isDev) return;
+  const el = document.getElementById('devUserList');
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    if (snap.empty) { el.innerHTML = '<div class="empty"><p>還沒有使用者</p></div>'; return; }
+    el.innerHTML = snap.docs.map(d => {
+      const u = d.data();
+      return `<div class="user-row">
+        <div class="user-row-avatar">${u.photo ? `<img src="${u.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover">` : '👤'}</div>
+        <div class="user-row-info">
+          <div class="user-row-name">${esc(u.name||'未知')}</div>
+          <div class="user-row-meta">${esc(u.email||'')} · ${u.uid?.slice(0,8)}…</div>
+          <div class="user-row-meta">首次：${u.firstSeen?.toDate ? fmtDate(u.firstSeen.toDate()) : '—'} · 最近：${u.lastSeen?.toDate ? fmtDate(u.lastSeen.toDate()) : '—'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = `<div class="empty"><p>載入失敗：${e.message}</p></div>`; }
+}
+
+async function loadDevActivity() {
+  if (!isDev) return;
+  const el = document.getElementById('devActivityLog');
+  try {
+    const q = query(collection(db, 'activity'), orderBy('ts', 'desc'), limit(20));
+    const snap = await getDocs(q);
+    if (snap.empty) { el.innerHTML = '<div class="empty"><p>暫無記錄</p></div>'; return; }
+    const colors = { 供應鏈:'var(--blue)',業務:'var(--purple)',行政:'var(--amber)',緊急:'var(--red)',個人:'var(--green)',chat:'var(--accent)' };
+    el.innerHTML = snap.docs.map(d => {
+      const a = d.data();
+      return `<div class="log-item">
+        <div class="log-item-header">
+          <span class="log-user">${esc(a.name||a.uid?.slice(0,8)||'?')}</span>
+          <span class="log-time">${a.ts?.toDate ? fmtDate(a.ts.toDate()) : '—'}</span>
+        </div>
+        <div class="log-text" style="color:${colors[a.cat]||'var(--text2)'}">● ${esc(a.text||'')}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = `<div class="empty"><p>載入失敗：${e.message}</p></div>`; }
+}
+
+// ══════════════════════════════════════════════
+// UI INIT
+// ══════════════════════════════════════════════
+function initUI() {
+  const d = new Date(), days = ['日','一','二','三','四','五','六'];
+  document.getElementById('dateLabel').textContent = `${d.getMonth()+1}/${d.getDate()} 週${days[d.getDay()]}`;
+  document.getElementById('versionBadge').textContent = `v${APP_VERSION}`;
+  document.getElementById('accAppVer').textContent = APP_VERSION;
+  document.getElementById('accSchemaVer').textContent = `schema v${SCHEMA_VERSION}`;
+  setupTags();
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.page)));
+}
+
+function updateProfileUI(user) {
+  if (user.photoURL) {
+    document.getElementById('userAvatar').innerHTML = `<img src="${user.photoURL}">`;
+    document.getElementById('profileAvatar').src = user.photoURL;
+  }
+  document.getElementById('profileName').textContent  = user.displayName || '使用者';
+  document.getElementById('profileEmail').textContent = user.email || '';
+  document.getElementById('profileSince').textContent = `UID: ${user.uid.slice(0,12)}…`;
+}
+
+function setSyncStatus(type, msg) {
+  const dot   = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  if (dot) { dot.className = `sync-dot ${type}`; }
+  if (label) { label.textContent = msg; label.style.color = type==='synced'?'var(--green)':type==='error'?'var(--red)':'var(--amber)'; }
+}
+
+window.switchTab = (name) => {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${name}`));
+  if (name === 'chat') setTimeout(scrollChat, 50);
+  if (name === 'dev') { loadDevUsers(); loadDevActivity(); updateDevKeyStatus(); }
+};
+
+// ══════════════════════════════════════════════
+// TASKS
+// ══════════════════════════════════════════════
+function setupTags() {
+  document.querySelectorAll('.tag[data-tag]').forEach(t => {
+    t.addEventListener('click', () => {
+      const v = t.dataset.tag;
+      if (selectedTag === v) { selectedTag = ''; t.classList.remove('sel'); }
+      else { document.querySelectorAll('.tag[data-tag]').forEach(x => x.classList.remove('sel')); selectedTag = v; t.classList.add('sel'); }
+    });
+  });
+}
+
+window.captureTask = async () => {
+  const input = document.getElementById('captureInput');
+  const text  = input.value.trim();
+  if (!text) return;
+  const cat = selectedTag || autoCategory(text);
+  const pri = autoUrgency(text);
+  const task = { id: genId('t'), title: text, cat, pri, done: false, shared: false, ts: now(), updatedAt: now() };
+  DB.tasks.unshift(task);
+  await logActivity(`新增任務：${text.slice(0,30)}`, cat);
+  input.value = ''; selectedTag = '';
+  document.querySelectorAll('.tag[data-tag]').forEach(x => x.classList.remove('sel'));
+  await saveDB(); showToast('✅ 已收進來');
+};
+
+window.captureAndChat = async () => {
+  const text = document.getElementById('captureInput').value.trim();
+  if (!text) { showToast('請先輸入內容'); return; }
+  await captureTask();
+  switchTab('chat');
+  setTimeout(() => { document.getElementById('chatInput').value = text; sendChat(); }, 200);
+};
+
+window.captureAndSendGemini = async () => {
+  const text = document.getElementById('captureInput').value.trim();
+  if (!text) { showToast('請先輸入內容'); return; }
+  await captureTask();
+  sendToGemini(text);
+};
+
+window.sendToGeminiDirect = (type) => {
+  const id = type==='supply'?'supplyInput':'salesInput';
+  const text = document.getElementById(id).value.trim();
+  if (!text) { showToast('請先輸入內容'); return; }
+  sendToGemini(text);
+};
+
+function sendToGemini(text) {
+  const taskCtx = (DB.tasks||[]).filter(t=>!t.done).slice(0,5).map(t=>`[${t.cat}] ${t.title}`).join('\n');
+  const full = `${text}\n\n【目前任務脈絡】\n${taskCtx}`;
+  if (extInstalled) {
+    window.dispatchEvent(new CustomEvent('WC_SEND_TO_GEMINI', { detail: { text: full, taskContext: taskCtx } }));
+  } else {
+    navigator.clipboard.writeText(full).catch(()=>{});
+    setTimeout(() => window.open('https://gemini.google.com/app','_blank'), 300);
+    showToast('📋 已複製！Gemini 開啟後貼上');
+  }
+}
+
+window.toggleDone = async (id) => {
+  const t = DB.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.done = !t.done; t.updatedAt = now();
+  if (t.done) await logActivity(`完成：${t.title.slice(0,25)}`, t.cat);
+  await saveDB(); showToast(t.done ? '✅ 完成！' : '↩ 已恢復');
+};
+
+window.deleteTask = async (id) => {
+  DB.tasks = DB.tasks.filter(x => x.id !== id);
+  await saveDB(); showToast('已刪除');
+};
+
+window.askAboutTask = (id) => {
+  const t = DB.tasks.find(x => x.id === id);
+  if (!t) return;
+  switchTab('chat');
+  setTimeout(() => { document.getElementById('chatInput').value = `請分析這個任務並給出處理建議：${t.title}`; sendChat(); }, 200);
+};
+
+window.sendTaskToGemini = (id) => {
+  const t = DB.tasks.find(x => x.id === id);
+  if (!t) return;
+  sendToGemini(`請協助處理這個工作任務：\n分類：${t.cat}\n內容：${t.title}`);
+};
+
+window.expandCard = (id) => { document.getElementById(`tc-${id}`)?.classList.toggle('expanded'); };
+
+function autoCategory(text) {
+  if (/供應商|訂單|到貨|庫存|採購|貨期|工廠/.test(text)) return '供應鏈';
+  if (/客戶|報價|業務|合約|成交|開發/.test(text)) return '業務';
+  if (/會議|文件|簽核|報告|行政|內部/.test(text)) return '行政';
+  if (/緊急|立即|馬上|今天|ASAP/.test(text)) return '緊急';
+  return '一般';
+}
+function autoUrgency(text) {
+  if (/緊急|立即|馬上|今天|ASAP|重要/.test(text)) return 'high';
+  if (/明天|本週|盡快/.test(text)) return 'mid';
+  return 'low';
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function renderAll() {
+  if (!DB) return;
+  renderTasks(); renderStats(); renderActivity();
+  renderGenericList('supply'); renderGenericList('sales');
+  updateUrgentBadge(); updateDevKeyStatus();
+}
+
+function renderTasks() {
+  const tasks    = DB.tasks || [];
+  const urgent   = tasks.filter(t => !t.done && (t.pri==='high'||t.cat==='緊急'));
+  const progress = tasks.filter(t => !t.done && t.pri!=='high' && t.cat!=='緊急');
+  const done     = tasks.filter(t => t.done);
+  document.getElementById('cnt-urgent').textContent   = urgent.length;
+  document.getElementById('cnt-progress').textContent = progress.length;
+  document.getElementById('cnt-done').textContent     = done.length;
+  renderTaskList('list-urgent',   urgent);
+  renderTaskList('list-progress', progress);
+  renderTaskList('list-done',     done);
+}
+
+function renderTaskList(elId, list) {
+  const el = document.getElementById(elId);
+  if (!list.length) { el.innerHTML = ''; return; }
+  el.innerHTML = list.map(t => `
+    <div class="task-card${t.done?' done':''}" data-cat="${t.cat}" id="tc-${t.id}" onclick="expandCard('${t.id}')">
+      <div class="task-top">
+        <div class="task-title">${esc(t.title)}</div>
+        <button class="check-btn${t.done?' done':''}" onclick="event.stopPropagation();toggleDone('${t.id}')">${t.done?'✓':''}</button>
+      </div>
+      <div class="task-meta">
+        <span class="task-cat-badge" data-cat="${t.cat}">${t.cat}</span>
+        <span class="task-time">${fmtTime(t.ts)}</span>
+        <span class="task-pri ${t.pri==='high'?'pri-high':t.pri==='mid'?'pri-mid':'pri-low'}">${t.pri==='high'?'⬆高':t.pri==='mid'?'—中':'↓低'}</span>
+      </div>
+      <div class="task-expanded">
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();askAboutTask('${t.id}')">💬 AI 分析</button>
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();sendTaskToGemini('${t.id}')">🚀 Gemini 無限版</button>
+        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();deleteTask('${t.id}')">刪除</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderStats() {
+  const tasks   = DB.tasks || [];
+  const today   = new Date().toDateString();
+  document.getElementById('stat-urgent').textContent  = tasks.filter(t=>!t.done&&(t.pri==='high'||t.cat==='緊急')).length;
+  document.getElementById('stat-pending').textContent = tasks.filter(t=>!t.done&&t.pri!=='high'&&t.cat!=='緊急').length;
+  document.getElementById('stat-done').textContent    = tasks.filter(t=>t.done&&new Date(t.ts).toDateString()===today).length;
+  document.getElementById('stat-total').textContent   = tasks.length;
+  document.getElementById('mod-tasks').textContent    = `${tasks.filter(t=>!t.done).length} 項待辦`;
+  document.getElementById('mod-supply').textContent   = `${(DB.supplyItems||[]).filter(t=>!t.done).length} 項追蹤`;
+  document.getElementById('mod-sales').textContent    = `${(DB.salesItems||[]).filter(t=>!t.done).length} 個跟進`;
+}
+
+function updateUrgentBadge() {
+  const cnt = (DB.tasks||[]).filter(t=>!t.done&&(t.pri==='high'||t.cat==='緊急')).length;
+  const b = document.getElementById('urgentBadge');
+  b.textContent = cnt; b.style.display = cnt > 0 ? '' : 'none';
+}
+
+function renderActivity() {
+  const el = document.getElementById('activity-list');
+  const act = DB.activity || [];
+  if (!act.length) { el.innerHTML = '<div class="empty"><div class="e-icon">📭</div><p>還沒有記錄</p></div>'; return; }
+  const colors = { 供應鏈:'var(--blue)',業務:'var(--purple)',行政:'var(--amber)',緊急:'var(--red)',個人:'var(--green)',chat:'var(--accent)' };
+  el.innerHTML = act.slice(0,8).map(a => `
+    <div class="activity-item">
+      <div class="act-dot" style="background:${colors[a.cat]||'var(--text3)'}"></div>
+      <div class="act-text">${esc(a.text)}</div>
+      <div class="act-time">${fmtTime(a.ts)}</div>
+    </div>`).join('');
+}
+
+window.addItem = async (type) => {
+  const inputId = type==='supply'?'supplyInput':'salesInput';
+  const text = document.getElementById(inputId).value.trim();
+  if (!text) return;
+  const item = { id: genId(type[0]), title: text, done: false, ts: now() };
+  if (type==='supply') DB.supplyItems.unshift(item);
+  else DB.salesItems.unshift(item);
+  await logActivity(`${type==='supply'?'供應鏈':'業務'}：${text.slice(0,30)}`, type==='supply'?'供應鏈':'業務');
+  document.getElementById(inputId).value = '';
+  await saveDB(); showToast('✅ 已新增');
+};
+
+window.askAI = (type) => {
+  const id = type==='supply'?'supplyInput':'salesInput';
+  const text = document.getElementById(id).value.trim();
+  if (!text) { showToast('請先輸入情況'); return; }
+  addItem(type);
+  switchTab('chat');
+  setTimeout(() => { document.getElementById('chatInput').value = `${type==='supply'?'供應鏈':'業務'}分析：${text}`; sendChat(); }, 200);
+};
+
+function renderGenericList(type) {
+  const items = type==='supply' ? (DB.supplyItems||[]) : (DB.salesItems||[]);
+  const cat   = type==='supply' ? '供應鏈' : '業務';
+  const icon  = type==='supply' ? '🚚' : '📈';
+  document.getElementById(`cnt-${type}`).textContent = items.filter(t=>!t.done).length;
+  const el = document.getElementById(`list-${type}`);
+  if (!items.length) { el.innerHTML = `<div class="empty"><div class="e-icon">${icon}</div><p>還沒有記錄</p></div>`; return; }
+  el.innerHTML = items.map(t => `
+    <div class="task-card${t.done?' done':''}" data-cat="${cat}">
+      <div class="task-top">
+        <div class="task-title">${esc(t.title)}</div>
+        <button class="check-btn${t.done?' done':''}" onclick="toggleGenItem('${type}','${t.id}')">${t.done?'✓':''}</button>
+      </div>
+      <div class="task-meta">
+        <span class="task-cat-badge" data-cat="${cat}">${cat}</span>
+        <span class="task-time">${fmtTime(t.ts)}</span>
+      </div>
+    </div>`).join('');
+}
+
+window.toggleGenItem = async (type, id) => {
+  const arr = type==='supply' ? DB.supplyItems : DB.salesItems;
+  const t = arr.find(x => x.id===id);
+  if (t) { t.done = !t.done; await saveDB(); }
+};
+
+// ══════════════════════════════════════════════
+// AI CHAT
+// ══════════════════════════════════════════════
+window.sendChat = async () => {
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
+  if (!text) return;
+  if (!geminiKey) { switchTab('dev'); showToast('⚠️ 請先在開發者面板設定 Gemini Key'); return; }
+  input.value = ''; input.style.height = '40px';
+  appendMsg('user', text);
+  chatHistory.push({ role:'user', parts:[{text}] });
+  await logActivity(`AI 對話：${text.slice(0,30)}`, 'chat');
+  const typing = appendTyping();
+  const taskCtx = (DB.tasks||[]).filter(t=>!t.done).slice(0,5).map(t=>`[${t.cat}] ${t.title}`).join('\n');
+  const sys = `你是專業 AI 工作助理，幫助台灣中小企業管理人員。工作範疇：供應鏈、業務銷售、內部行政。目前任務：\n${taskCtx||'（無）'}\n請用繁體中文，務實直接。緊急狀況給步驟，需要範本直接給完整版。`;
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
+    const resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ system_instruction:{parts:[{text:sys}]}, contents: chatHistory }) });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '抱歉，無法取得回應。';
+    typing.remove(); appendMsg('ai', aiText);
+    chatHistory.push({ role:'model', parts:[{text:aiText}] });
+    if (chatHistory.length > 20) chatHistory.splice(0,2);
+  } catch(e) {
+    typing.remove();
+    appendMsg('ai', e.message?.includes('API key') ? '⚠️ API Key 無效' : '⚠️ ' + (e.message||'連線錯誤'));
+  }
+  scrollChat();
+};
+
+window.sendQuick = (text) => { document.getElementById('chatInput').value = text; sendChat(); };
+
+function appendMsg(role, text) {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg msg-${role}`;
+  if (role==='ai') div.innerHTML = `<div class="ai-label">AI 助理</div><div class="ai-body">${renderMd(text)}</div>`;
+  else div.textContent = text;
+  msgs.appendChild(div); scrollChat(); return div;
+}
+function appendTyping() {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg msg-ai';
+  div.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  msgs.appendChild(div); scrollChat(); return div;
+}
+function scrollChat() { const m = document.getElementById('chatMessages'); m.scrollTop = m.scrollHeight; }
+window.chatEnter = (e) => { if (e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChat(); } };
+window.autoResize = (el) => { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; };
+
+function renderMd(text) {
+  return esc(text)
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/^[\*\-]\s+(.+)$/gm,'<li>$1</li>')
+    .replace(/^(\d+)\.\s+(.+)$/gm,'<li><span style="color:var(--accent);font-family:var(--font-mono);font-size:11px">$1.</span> $2</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g,m=>`<ul>${m}</ul>`)
+    .replace(/^###\s+(.+)$/gm,'<h4>$1</h4>')
+    .replace(/^##?\s+(.+)$/gm,'<h3>$1</h3>')
+    .replace(/^---+$/gm,'<hr>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n(?!<)/g,'<br>');
+}
+
+// ══════════════════════════════════════════════
+// EXTENSION BRIDGE
+// ══════════════════════════════════════════════
+function detectExtension() {
+  window.addEventListener('WC_EXT_READY', (e) => { extInstalled=true; onExtReady(e.detail?.version); });
+  window.addEventListener('WC_PONG_EXT',  (e) => { extInstalled=true; onExtReady(e.detail?.version); });
+  window.addEventListener('WC_GEMINI_STATUS', (e) => {
+    if (e.detail?.ok) showToast(e.detail?.needRefresh ? '📋 已複製！Gemini 開啟後貼上' : '✅ 已送到 Gemini！');
+    else showToast('⚠️ ' + (e.detail?.error||'送出失敗'));
+  });
+  window.addEventListener('WC_EXT_CONTEXT_LOST', () => { extInstalled=false; });
+  setTimeout(() => window.dispatchEvent(new CustomEvent('WC_PING_EXT')), 500);
+}
+function onExtReady(ver) {
+  document.getElementById('extBanner').classList.add('show');
+  document.getElementById('accExtStatus').textContent = `✓ 已連線 v${ver||'?'}`;
+  document.getElementById('accExtStatus').style.color = 'var(--blue)';
+}
+
+// ══════════════════════════════════════════════
+// MODAL / MISC
+// ══════════════════════════════════════════════
+window.closeModal = (id) => document.getElementById(id).classList.remove('open');
+window.saveTaskModal = async () => {
+  const title = document.getElementById('m-title').value.trim();
+  if (!title) return;
+  const cat = document.getElementById('m-cat').value;
+  const pri = document.getElementById('m-pri').value;
+  DB.tasks.unshift({ id:genId('t'), title, cat, pri, done:false, shared:false, ts:now(), updatedAt:now() });
+  await logActivity(`新增：${title.slice(0,30)}`, cat);
+  closeModal('addModal'); await saveDB(); showToast('✅ 已儲存');
+};
+
+window.exportData = () => {
+  const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `wc-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); showToast('✅ 備份已下載');
+};
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function genId(p='i'){ return `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2,6)}`; }
+function now(){ return new Date().toISOString(); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtTime(ts) {
+  const d=new Date(ts),n=new Date(),diff=Math.floor((n-d)/60000);
+  if(diff<1) return '剛剛'; if(diff<60) return `${diff}分前`;
+  if(diff<1440) return `${Math.floor(diff/60)}小時前`;
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+function fmtDate(d) {
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+</script>
+</body>
+</html>
