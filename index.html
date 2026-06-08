@@ -550,7 +550,9 @@ onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user;
     isDev = (user.uid === DEV_UID);
-    console.log('[WC] UID:', user.uid); // 第一次登入看這個，填到 DEV_UID
+    console.log('[WC] UID:', user.uid);
+    console.log('[WC] DEV_UID:', DEV_UID);
+    console.log('[WC] isDev:', isDev);
     await onUserLogin(user);
   } else {
     document.getElementById('loginScreen').style.display = 'flex';
@@ -559,16 +561,16 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function onUserLogin(user) {
-  // 顯示 App
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('mainApp').style.display = 'flex';
 
-  // 更新 UI
   initUI();
   updateProfileUI(user);
-  if (isDev) showDevMode();
 
-  // 載入資料
+  // 立即嘗試 + 延遲重試（確保 DOM 完全就緒）
+  if (isDev) showDevMode();
+  setTimeout(() => { if (isDev) showDevMode(); }, 800);
+
   await loadOrCreateUserData(user);
   await loadGeminiConfig();
   setupRealtimeSync(user.uid);
