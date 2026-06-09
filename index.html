@@ -423,6 +423,7 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">
         <button class="btn btn-ghost" onclick="manualSync()">🔄 立即同步</button>
         <button class="btn btn-ghost" onclick="exportData()">📥 匯出備份</button>
+        <button class="btn btn-red" onclick="clearAllData()">🗑 清除所有資料</button>
         <button class="btn btn-red" onclick="signOut()">登出</button>
       </div>
       <div class="settings-section">
@@ -1295,6 +1296,12 @@ window.exportData = () => {
   a.href = URL.createObjectURL(blob);
   a.download = `wc-backup-${new Date().toISOString().slice(0,10)}.json`;
   a.click(); showToast('✅ 備份已下載');
+};
+
+window.clearAllData = async () => {
+  if (!confirm('確定要清除所有任務、供應鏈、業務記錄？\n此動作無法復原。')) return;
+  DB.tasks = []; DB.supplyItems = []; DB.salesItems = []; DB.activity = [];
+  await saveDB(); showToast('✅ 已清除所有資料');
 };
 
 // ══════════════════════════════════════════════
