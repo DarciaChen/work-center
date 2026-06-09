@@ -124,6 +124,9 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
 .check-btn.done{background:var(--accent);border-color:var(--accent);color:#000}
 .task-expanded{display:none;border-top:.5px solid var(--border);margin-top:8px;padding-top:8px}
 .task-card.expanded .task-expanded{display:flex;gap:6px;flex-wrap:wrap}
+.task-card.done .task-expanded{display:flex;gap:6px;flex-wrap:wrap}
+.btn-red-solid{background:var(--red);color:#fff;border:none}
+.btn-red-solid:hover{opacity:.85}
 
 .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
 .stat-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:14px}
@@ -853,22 +856,52 @@ async function loadDevActivity() {
   if (!isDev) return;
   const el = document.getElementById('devActivityLog');
   try {
-    const q = query(collection(db, 'activity'), orderBy('ts', 'desc'), limit(20));
+    const q = query(collection(db, 'activity'), orderBy('ts', 'desc'), limit(50));
     const snap = await getDocs(q);
     if (snap.empty) { el.innerHTML = '<div class="empty"><p>暫無記錄</p></div>'; return; }
-    const colors = { 供應鏈:'var(--blue)',業務:'var(--purple)',行政:'var(--amber)',緊急:'var(--red)',個人:'var(--green)',chat:'var(--accent)' };
-    el.innerHTML = snap.docs.map(d => {
+
+    // 按使用者分組
+    const groups = {};
+    snap.docs.forEach(d => {
       const a = d.data();
-      return `<div class="log-item">
-        <div class="log-item-header">
-          <span class="log-user">${esc(a.name||a.uid?.slice(0,8)||'?')}</span>
-          <span class="log-time">${a.ts?.toDate ? fmtDate(a.ts.toDate()) : '—'}</span>
+      const uid = a.uid || 'unknown';
+      if (!groups[uid]) groups[uid] = { name: a.name || uid.slice(0,8), items: [] };
+      groups[uid].items.push(a);
+    });
+
+    const colors = { 供應鏈:'var(--blue)',業務:'var(--purple)',行政:'var(--amber)',緊急:'var(--red)',個人:'var(--green)',chat:'var(--accent)' };
+
+    el.innerHTML = Object.entries(groups).map(([uid, g], i) => `
+      <div style="background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden">
+        <div onclick="toggleDevGroup('dg-${i}')"
+          style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+          <div>
+            <span style="font-size:12px;font-weight:500;color:var(--purple)">${esc(g.name)}</span>
+            <span style="font-size:10px;color:var(--text3);font-family:var(--font-mono);margin-left:8px">${g.items.length} 筆</span>
+          </div>
+          <span id="dg-arrow-${i}" style="color:var(--text3);font-size:12px;transition:transform .15s">▼</span>
         </div>
-        <div class="log-text" style="color:${colors[a.cat]||'var(--text2)'}">● ${esc(a.text||'')}</div>
-      </div>`;
-    }).join('');
+        <div id="dg-${i}" style="display:none;border-top:.5px solid var(--border)">
+          ${g.items.map(a => `
+            <div style="padding:8px 14px;border-bottom:.5px solid var(--border);display:flex;gap:10px;align-items:flex-start">
+              <div style="width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px;background:${colors[a.cat]||'var(--text3)'}"></div>
+              <div style="flex:1;font-size:11px;color:var(--text2);line-height:1.5">${esc(a.text||'')}</div>
+              <div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);flex-shrink:0">${a.ts?.toDate ? fmtDate(a.ts.toDate()) : '—'}</div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
   } catch(e) { el.innerHTML = `<div class="empty"><p>載入失敗：${e.message}</p></div>`; }
 }
+
+window.toggleDevGroup = (id) => {
+  const el = document.getElementById(id);
+  const idx = id.split('-')[1];
+  const arrow = document.getElementById(`dg-arrow-${idx}`);
+  if (!el) return;
+  const open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
+};
 
 // ══════════════════════════════════════════════
 // UI INIT
@@ -1036,7 +1069,7 @@ function renderTaskList(elId, list) {
   const el = document.getElementById(elId);
   if (!list.length) { el.innerHTML = ''; return; }
   el.innerHTML = list.map(t => `
-    <div class="task-card${t.done?' done':''}" data-cat="${t.cat}" id="tc-${t.id}" onclick="expandCard('${t.id}')">
+    <div class="task-card${t.done?' done expanded':''}" data-cat="${t.cat}" id="tc-${t.id}" onclick="expandCard('${t.id}')">
       <div class="task-top">
         <div class="task-title">${esc(t.title)}</div>
         <button class="check-btn${t.done?' done':''}" onclick="event.stopPropagation();toggleDone('${t.id}')">${t.done?'✓':''}</button>
@@ -1046,10 +1079,10 @@ function renderTaskList(elId, list) {
         <span class="task-time">${fmtTime(t.ts)}</span>
         <span class="task-pri ${t.pri==='high'?'pri-high':t.pri==='mid'?'pri-mid':'pri-low'}">${t.pri==='high'?'⬆高':t.pri==='mid'?'—中':'↓低'}</span>
       </div>
-      <div class="task-expanded${t.done?' expanded':''}">
-        ${!t.done?`<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();askAboutTask('${t.id}')">💬 AI 分析</button>`:''}
+      <div class="task-expanded">
+        <button class="btn btn-blue btn-sm" onclick="event.stopPropagation();askAboutTask('${t.id}')">💬 AI 分析</button>
         ${!t.done?`<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();sendTaskToGemini('${t.id}')">🚀 Gemini 無限版</button>`:''}
-        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();deleteTask('${t.id}')">🗑 刪除</button>
+        <button class="btn btn-red-solid btn-sm" onclick="event.stopPropagation();deleteTask('${t.id}')">🗑 刪除</button>
       </div>
     </div>`).join('');
 }
@@ -1114,7 +1147,7 @@ function renderGenericList(type) {
   const el = document.getElementById(`list-${type}`);
   if (!items.length) { el.innerHTML = `<div class="empty"><div class="e-icon">${icon}</div><p>還沒有記錄</p></div>`; return; }
   el.innerHTML = items.map(t => `
-    <div class="task-card${t.done?' done':''}" data-cat="${cat}" id="gi-${t.id}" onclick="expandGenCard('${t.id}')">
+    <div class="task-card${t.done?' done expanded':''}" data-cat="${cat}" id="gi-${t.id}" onclick="expandGenCard('${t.id}')">
       <div class="task-top">
         <div class="task-title">${esc(t.title)}</div>
         <button class="check-btn${t.done?' done':''}" onclick="event.stopPropagation();toggleGenItem('${type}','${t.id}')">${t.done?'✓':''}</button>
@@ -1123,9 +1156,9 @@ function renderGenericList(type) {
         <span class="task-cat-badge" data-cat="${cat}">${cat}</span>
         <span class="task-time">${fmtTime(t.ts)}</span>
       </div>
-      <div class="task-expanded${t.done?' expanded':''}">
-        ${!t.done?`<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();askAboutGenItem('${type}','${t.id}')">💬 AI 分析</button>`:''}
-        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();deleteGenItem('${type}','${t.id}')">🗑 刪除</button>
+      <div class="task-expanded">
+        <button class="btn btn-blue btn-sm" onclick="event.stopPropagation();askAboutGenItem('${type}','${t.id}')">💬 AI 分析</button>
+        <button class="btn btn-red-solid btn-sm" onclick="event.stopPropagation();deleteGenItem('${type}','${t.id}')">🗑 刪除</button>
       </div>
     </div>`).join('');
 }
