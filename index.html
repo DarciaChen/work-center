@@ -218,7 +218,19 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
 .sync-dot.syncing{background:var(--amber)}
 .sync-dot.error{background:var(--red)}
 
-/* ── MODAL ── */
+/* ── PIN LOCK ── */
+.pin-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
+.pin-title{font-size:16px;font-weight:500;margin-bottom:8px}
+.pin-sub{font-size:12px;color:var(--text3);margin-bottom:32px;text-align:center}
+.pin-dots{display:flex;gap:14px;margin-bottom:32px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);transition:all .15s}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:240px}
+.pin-btn{height:56px;border-radius:var(--r);background:var(--bg2);border:.5px solid var(--border2);font-size:20px;font-weight:500;color:var(--text);cursor:pointer;transition:all .15s}
+.pin-btn:hover{background:var(--bg3)}
+.pin-btn.del{font-size:14px;color:var(--text2)}
+.pin-btn.empty{background:transparent;border:none;cursor:default}
+.pin-error{color:var(--red);font-size:12px;margin-top:12px;min-height:18px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:none;align-items:flex-end;justify-content:center}
 .modal-overlay.open{display:flex}
 .modal{background:var(--bg2);border:.5px solid var(--border2);border-radius:var(--r) var(--r) 0 0;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;padding:20px}
@@ -245,8 +257,14 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
 </head>
 <body>
 
+<!-- ══ LOADING SCREEN ══ -->
+<div class="login-screen" id="loadingScreen">
+  <div class="login-logo">作戰中心</div>
+  <div style="margin-top:24px;color:var(--text3);font-size:12px;font-family:var(--font-mono)">載入中…</div>
+</div>
+
 <!-- ══ LOGIN SCREEN ══ -->
-<div class="login-screen" id="loginScreen">
+<div class="login-screen" id="loginScreen" style="display:none">
   <div class="login-logo">作戰中心</div>
   <div class="login-sub">Work Command Center</div>
   <button class="google-signin-btn" onclick="googleSignIn()">
@@ -317,7 +335,7 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
           <span class="tag" data-tag="個人">⭐ 個人</span>
         </div>
         <div class="capture-actions">
-          <button class="btn btn-primary" onclick="captureTask()">收進來</button>
+          <button class="btn btn-primary" onclick="captureTask()">新增追蹤</button>
           <button class="btn btn-ghost" onclick="captureAndChat()">＋ AI 分析</button>
           <button class="btn btn-blue btn-sm" onclick="captureAndSendGemini()">🚀 跳轉 Gemini 無限版</button>
         </div>
@@ -376,7 +394,7 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
         <div class="capture-label">📈 業務快速記錄</div>
         <textarea class="capture-input" id="salesInput" placeholder="例：客戶C公司，下週要報價，需確認規格" rows="2"></textarea>
         <div class="capture-actions">
-          <button class="btn btn-primary" onclick="addItem('sales')">新增跟進</button>
+          <button class="btn btn-primary" onclick="addItem('sales')">新增追蹤</button>
           <button class="btn btn-ghost" onclick="askAI('sales')">AI 出策略</button>
           <button class="btn btn-blue btn-sm" onclick="sendToGeminiDirect('sales')">🚀 Gemini 無限版</button>
         </div>
@@ -409,6 +427,18 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
         <div class="settings-row"><span class="settings-row-label">App 版本</span><span class="settings-row-value" id="accAppVer">—</span></div>
         <div class="settings-row"><span class="settings-row-label">資料版本</span><span class="settings-row-value" id="accSchemaVer">—</span></div>
         <div class="settings-row"><span class="settings-row-label">Chrome 擴充套件</span><span class="settings-row-value" id="accExtStatus">未偵測</span></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-title">頁面鎖定 PIN</div>
+        <div class="info-box" style="margin-bottom:10px;font-size:11px">
+          設定後可在帳號頁點「🔒 鎖定」，離開電腦時保護隱私。解鎖需輸入 PIN。
+        </div>
+        <div id="pinStatus" style="font-size:12px;color:var(--text3);margin-bottom:10px;font-family:var(--font-mono)"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="setupPin()">⚙ 設定 PIN</button>
+          <button class="btn btn-ghost btn-sm" id="lockBtn" onclick="lockScreen()" style="display:none">🔒 鎖定</button>
+          <button class="btn btn-red btn-sm" id="clearPinBtn" onclick="clearPin()" style="display:none">移除 PIN</button>
+        </div>
       </div>
     </div>
 
@@ -459,6 +489,35 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
     </div>
 
   </div><!-- /main -->
+<!-- PIN LOCK SCREEN -->
+<div class="pin-screen" id="pinScreen" style="display:none">
+  <div class="login-logo" style="margin-bottom:4px">作戰中心</div>
+  <div class="pin-title" id="pinTitle">輸入 PIN 解鎖</div>
+  <div class="pin-sub" id="pinSub">請輸入 4 位數字 PIN</div>
+  <div class="pin-dots" id="pinDots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-btn" onclick="pinInput('1')">1</button>
+    <button class="pin-btn" onclick="pinInput('2')">2</button>
+    <button class="pin-btn" onclick="pinInput('3')">3</button>
+    <button class="pin-btn" onclick="pinInput('4')">4</button>
+    <button class="pin-btn" onclick="pinInput('5')">5</button>
+    <button class="pin-btn" onclick="pinInput('6')">6</button>
+    <button class="pin-btn" onclick="pinInput('7')">7</button>
+    <button class="pin-btn" onclick="pinInput('8')">8</button>
+    <button class="pin-btn" onclick="pinInput('9')">9</button>
+    <button class="pin-btn empty"></button>
+    <button class="pin-btn" onclick="pinInput('0')">0</button>
+    <button class="pin-btn del" onclick="pinDelete()">⌫</button>
+  </div>
+  <div class="pin-error" id="pinError"></div>
+  <button class="btn btn-ghost btn-sm" style="margin-top:20px" onclick="pinCancel()">取消</button>
+</div>
+
 </div><!-- /app -->
 
 <!-- MODAL -->
@@ -484,7 +543,7 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
 <!-- ══ FIREBASE + APP SCRIPT ══ -->
 <script type="module">
 import { initializeApp }          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut, onAuthStateChanged }
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut as fbSignOut, onAuthStateChanged }
                                    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs, onSnapshot, serverTimestamp, addDoc }
                                    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -533,7 +592,17 @@ let unsubSnapshot = null;
 // ══════════════════════════════════════════════
 window.googleSignIn = async () => {
   try {
-    await signInWithPopup(auth, provider);
+    const freshProvider = new GoogleAuthProvider();
+    // 只有主動登出後才強制選帳號
+    if (sessionStorage.getItem('wc_logged_out')) {
+      freshProvider.setCustomParameters({ prompt: 'select_account' });
+    }
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      await signInWithRedirect(auth, freshProvider);
+    } else {
+      await signInWithPopup(auth, freshProvider);
+    }
   } catch(e) {
     showToast('⚠️ 登入失敗：' + e.message);
   }
@@ -542,22 +611,25 @@ window.googleSignIn = async () => {
 window.signOut = async () => {
   if (!confirm('確定要登出？')) return;
   if (unsubSnapshot) unsubSnapshot();
+  sessionStorage.setItem('wc_logged_out', '1'); // 標記主動登出
   await fbSignOut(auth);
   location.reload();
 };
 
+// 處理手機 Redirect 登入的回調
+getRedirectResult(auth).catch(() => {});
+
 onAuthStateChanged(auth, async (user) => {
+  document.getElementById('loadingScreen').style.display = 'none';
   if (user) {
     currentUser = user;
     console.log('[WC] UID:', user.uid);
-    // 從 Firestore 查詢角色
     try {
       const snap = await getDoc(doc(db, 'users', user.uid));
       isDev = snap.exists() && snap.data().role === 'dev';
-    } catch(_) {
-      isDev = false;
-    }
+    } catch(_) { isDev = false; }
     console.log('[WC] isDev:', isDev);
+    sessionStorage.removeItem('wc_logged_out');
     await onUserLogin(user);
   } else {
     document.getElementById('loginScreen').style.display = 'flex';
@@ -578,10 +650,18 @@ async function onUserLogin(user) {
   detectExtension();
   renderAll();
 
-  // 最後才顯示開發者介面，確保 DOM 完全就緒
   if (isDev) {
     showDevMode();
     console.log('[WC] 開發者模式已啟動');
+  }
+
+  updatePinUI();
+
+  // 若有 PIN 且未解鎖（不是剛登入的情況），顯示鎖定畫面
+  if (getPinHash() && !sessionStorage.getItem('wc_unlocked')) {
+    showPinScreen('unlock');
+  } else {
+    sessionStorage.setItem('wc_unlocked', '1');
   }
 }
 
@@ -749,6 +829,7 @@ window.refreshDevPanel = async () => {
 async function loadDevUsers() {
   if (!isDev) return;
   const el = document.getElementById('devUserList');
+  el.innerHTML = '<div class="empty"><p>載入中…</p></div>';
   try {
     const snap = await getDocs(collection(db, 'users'));
     if (snap.empty) { el.innerHTML = '<div class="empty"><p>還沒有使用者</p></div>'; return; }
@@ -763,7 +844,9 @@ async function loadDevUsers() {
         </div>
       </div>`;
     }).join('');
-  } catch(e) { el.innerHTML = `<div class="empty"><p>載入失敗：${e.message}</p></div>`; }
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><p style="color:var(--amber)">⚠️ 權限不足<br><span style="font-size:10px;color:var(--text3)">請更新 Firestore 安全規則，<br>允許 dev 讀取所有 users</span></p></div>`;
+  }
 }
 
 async function loadDevActivity() {
@@ -963,10 +1046,10 @@ function renderTaskList(elId, list) {
         <span class="task-time">${fmtTime(t.ts)}</span>
         <span class="task-pri ${t.pri==='high'?'pri-high':t.pri==='mid'?'pri-mid':'pri-low'}">${t.pri==='high'?'⬆高':t.pri==='mid'?'—中':'↓低'}</span>
       </div>
-      <div class="task-expanded">
-        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();askAboutTask('${t.id}')">💬 AI 分析</button>
-        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();sendTaskToGemini('${t.id}')">🚀 Gemini 無限版</button>
-        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();deleteTask('${t.id}')">刪除</button>
+      <div class="task-expanded${t.done?' expanded':''}">
+        ${!t.done?`<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();askAboutTask('${t.id}')">💬 AI 分析</button>`:''}
+        ${!t.done?`<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();sendTaskToGemini('${t.id}')">🚀 Gemini 無限版</button>`:''}
+        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();deleteTask('${t.id}')">🗑 刪除</button>
       </div>
     </div>`).join('');
 }
@@ -1031,17 +1114,42 @@ function renderGenericList(type) {
   const el = document.getElementById(`list-${type}`);
   if (!items.length) { el.innerHTML = `<div class="empty"><div class="e-icon">${icon}</div><p>還沒有記錄</p></div>`; return; }
   el.innerHTML = items.map(t => `
-    <div class="task-card${t.done?' done':''}" data-cat="${cat}">
+    <div class="task-card${t.done?' done':''}" data-cat="${cat}" id="gi-${t.id}" onclick="expandGenCard('${t.id}')">
       <div class="task-top">
         <div class="task-title">${esc(t.title)}</div>
-        <button class="check-btn${t.done?' done':''}" onclick="toggleGenItem('${type}','${t.id}')">${t.done?'✓':''}</button>
+        <button class="check-btn${t.done?' done':''}" onclick="event.stopPropagation();toggleGenItem('${type}','${t.id}')">${t.done?'✓':''}</button>
       </div>
       <div class="task-meta">
         <span class="task-cat-badge" data-cat="${cat}">${cat}</span>
         <span class="task-time">${fmtTime(t.ts)}</span>
       </div>
+      <div class="task-expanded${t.done?' expanded':''}">
+        ${!t.done?`<button class="btn btn-blue btn-sm" onclick="event.stopPropagation();askAboutGenItem('${type}','${t.id}')">💬 AI 分析</button>`:''}
+        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();deleteGenItem('${type}','${t.id}')">🗑 刪除</button>
+      </div>
     </div>`).join('');
 }
+
+window.expandGenCard = (id) => {
+  document.getElementById(`gi-${id}`)?.classList.toggle('expanded');
+};
+
+window.askAboutGenItem = (type, id) => {
+  const arr = type==='supply' ? DB.supplyItems : DB.salesItems;
+  const t = arr.find(x => x.id===id);
+  if (!t) return;
+  switchTab('chat');
+  setTimeout(() => {
+    document.getElementById('chatInput').value = `請分析這個${type==='supply'?'供應鏈':'業務'}狀況並給建議：${t.title}`;
+    sendChat();
+  }, 200);
+};
+
+window.deleteGenItem = async (type, id) => {
+  if (type==='supply') DB.supplyItems = DB.supplyItems.filter(x => x.id!==id);
+  else DB.salesItems = DB.salesItems.filter(x => x.id!==id);
+  await saveDB(); showToast('已刪除');
+};
 
 window.toggleGenItem = async (type, id) => {
   const arr = type==='supply' ? DB.supplyItems : DB.salesItems;
@@ -1155,6 +1263,134 @@ window.exportData = () => {
   a.download = `wc-backup-${new Date().toISOString().slice(0,10)}.json`;
   a.click(); showToast('✅ 備份已下載');
 };
+
+// ══════════════════════════════════════════════
+// PIN LOCK
+// ══════════════════════════════════════════════
+let pinBuffer = '';
+let pinMode = ''; // 'unlock' | 'setup' | 'confirm'
+let pinSetupFirst = '';
+
+function getPinHash() { return localStorage.getItem('wc_pin_hash'); }
+function hashPin(p) {
+  let h = 0;
+  for (let i = 0; i < p.length; i++) h = Math.imul(31, h) + p.charCodeAt(i) | 0;
+  return String(h);
+}
+
+function updatePinUI() {
+  const el = document.getElementById('pinStatus');
+  const lockBtn = document.getElementById('lockBtn');
+  const clearBtn = document.getElementById('clearPinBtn');
+  if (!el) return;
+  if (getPinHash()) {
+    el.textContent = '✓ PIN 已設定'; el.style.color = 'var(--green)';
+    if (lockBtn) lockBtn.style.display = '';
+    if (clearBtn) clearBtn.style.display = '';
+  } else {
+    el.textContent = '未設定'; el.style.color = 'var(--text3)';
+    if (lockBtn) lockBtn.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+}
+
+window.lockScreen = () => {
+  if (!getPinHash()) { showToast('請先設定 PIN'); return; }
+  sessionStorage.removeItem('wc_unlocked');
+  showPinScreen('unlock');
+};
+
+window.setupPin = () => {
+  pinSetupFirst = '';
+  showPinScreen('setup');
+};
+
+window.clearPin = () => {
+  if (!confirm('確定移除 PIN？')) return;
+  localStorage.removeItem('wc_pin_hash');
+  sessionStorage.removeItem('wc_unlocked');
+  updatePinUI(); showToast('✅ PIN 已移除');
+};
+
+function showPinScreen(mode) {
+  pinMode = mode; pinBuffer = '';
+  const screen = document.getElementById('pinScreen');
+  const title  = document.getElementById('pinTitle');
+  const sub    = document.getElementById('pinSub');
+  screen.style.display = 'flex';
+  if (mode === 'unlock') { title.textContent = '頁面已鎖定'; sub.textContent = '請輸入 PIN 解鎖'; }
+  else if (mode === 'setup') { title.textContent = '設定 PIN'; sub.textContent = '請輸入新的 4 位數字 PIN'; }
+  else if (mode === 'confirm') { title.textContent = '確認 PIN'; sub.textContent = '再輸入一次確認'; }
+  updatePinDots();
+  document.getElementById('pinError').textContent = '';
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`pd${i}`)?.classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+window.pinInput = (d) => {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(processPinComplete, 150);
+};
+
+window.pinDelete = () => {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDots();
+};
+
+window.pinCancel = () => {
+  if (pinMode === 'unlock') return; // 解鎖模式不能取消
+  document.getElementById('pinScreen').style.display = 'none';
+  pinBuffer = ''; pinMode = '';
+};
+
+function processPinComplete() {
+  const err = document.getElementById('pinError');
+  if (pinMode === 'unlock') {
+    if (hashPin(pinBuffer) === getPinHash()) {
+      sessionStorage.setItem('wc_unlocked', '1');
+      document.getElementById('pinScreen').style.display = 'none';
+      showToast('✅ 已解鎖');
+    } else {
+      err.textContent = 'PIN 錯誤，請再試一次';
+      pinBuffer = ''; updatePinDots();
+    }
+  } else if (pinMode === 'setup') {
+    pinSetupFirst = pinBuffer;
+    pinBuffer = '';
+    showPinScreen('confirm');
+  } else if (pinMode === 'confirm') {
+    if (pinBuffer === pinSetupFirst) {
+      localStorage.setItem('wc_pin_hash', hashPin(pinBuffer));
+      sessionStorage.setItem('wc_unlocked', '1');
+      document.getElementById('pinScreen').style.display = 'none';
+      updatePinUI(); showToast('✅ PIN 設定完成');
+    } else {
+      err.textContent = '兩次輸入不一致，請重新設定';
+      pinBuffer = ''; pinSetupFirst = '';
+      setTimeout(() => showPinScreen('setup'), 1000);
+    }
+  }
+}
+
+// 頁面可見性：重新顯示時檢查是否需要鎖定
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  // 離開頁面時若有 PIN 且未標記不鎖，自動鎖定
+  if (getPinHash() && sessionStorage.getItem('wc_unlocked')) {
+    sessionStorage.removeItem('wc_unlocked');
+  }
+});
+window.addEventListener('focus', () => {
+  if (getPinHash() && !sessionStorage.getItem('wc_unlocked') && currentUser) {
+    showPinScreen('unlock');
+  }
+});
 
 // ══════════════════════════════════════════════
 // UTILS
