@@ -221,7 +221,12 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
 .sync-dot.syncing{background:var(--amber)}
 .sync-dot.error{background:var(--red)}
 
-/* ── PIN LOCK ── */
+/* ── VOICE ── */
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,71,87,.4)}50%{box-shadow:0 0 0 12px rgba(255,71,87,0)}}
+.voice-todo-card{background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);padding:11px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.voice-todo-card.added{opacity:.4}
+.voice-todo-text{font-size:13px;color:var(--text);line-height:1.5;flex:1}
+.voice-todo-card.added .voice-todo-text{text-decoration:line-through;color:var(--text3)}
 .pin-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
 .pin-title{font-size:16px;font-weight:500;margin-bottom:8px}
 .pin-sub{font-size:12px;color:var(--text3);margin-bottom:32px;text-align:center}
@@ -295,6 +300,7 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
   <div class="tabs" id="tabBar">
     <div class="tab active" data-page="overview">總覽</div>
     <div class="tab" data-page="tasks">任務 <span class="tab-badge" id="urgentBadge" style="display:none">0</span></div>
+    <div class="tab" data-page="voice">🎙 語音</div>
     <div class="tab" data-page="chat">AI 對話</div>
     <div class="tab" data-page="supply">供應鏈</div>
     <div class="tab" data-page="sales">業務</div>
@@ -349,6 +355,92 @@ input,textarea,select{font-family:var(--font-ui);color:var(--text)}
       <div class="task-list" id="list-progress"></div>
       <div class="section-header"><span class="section-title">COMPLETED</span><span class="count-badge" id="cnt-done">0</span></div>
       <div class="task-list" id="list-done"></div>
+    </div>
+
+    <!-- ── VOICE ── -->
+    <div class="page" id="page-voice">
+
+      <!-- 錄音控制區 -->
+      <div id="voiceIdle">
+        <div style="text-align:center;padding:32px 16px 24px">
+          <div id="voiceMicBtn" onclick="voiceStart()"
+            style="width:80px;height:80px;border-radius:50%;background:var(--bg2);border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:32px;cursor:pointer;margin:0 auto 16px;transition:all .2s">
+            🎙
+          </div>
+          <div style="font-size:14px;font-weight:500;color:var(--text)">點擊開始錄音</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">錄音完成後自動送 AI 分析整理重點</div>
+        </div>
+      </div>
+
+      <!-- 錄音中 -->
+      <div id="voiceRecording" style="display:none">
+        <div style="text-align:center;padding:24px 16px 16px">
+          <div onclick="voiceStop()"
+            style="width:80px;height:80px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;margin:0 auto 12px;animation:recPulse 1.5s infinite">
+            ⏹
+          </div>
+          <div style="font-size:13px;color:var(--red);font-weight:500">錄音中 <span id="voiceTimer">0:00</span></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">點擊停止並分析</div>
+        </div>
+        <div class="capture-box" style="margin:0 0 12px">
+          <div class="capture-label">即時轉錄</div>
+          <div id="voiceLiveText" style="font-size:13px;color:var(--text2);line-height:1.7;min-height:60px;white-space:pre-wrap"></div>
+          <div id="voiceInterim" style="font-size:12px;color:var(--text3);font-style:italic;margin-top:4px"></div>
+        </div>
+      </div>
+
+      <!-- 分析中 -->
+      <div id="voiceProcessing" style="display:none;text-align:center;padding:48px 16px">
+        <div style="font-size:28px;margin-bottom:12px">🤖</div>
+        <div style="font-size:13px;color:var(--text2)">AI 分析中，請稍候…</div>
+        <div class="typing-dots" style="justify-content:center;margin-top:8px"><span></span><span></span><span></span></div>
+      </div>
+
+      <!-- 分析結果 -->
+      <div id="voiceResult" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:11px;font-family:var(--font-mono);color:var(--text3);letter-spacing:.08em">ANALYSIS RESULT</div>
+          <button class="btn btn-ghost btn-sm" onclick="voiceReset()">🔄 重新錄音</button>
+        </div>
+
+        <!-- 重點摘要 -->
+        <div class="capture-box" style="margin-bottom:10px">
+          <div class="capture-label">🎯 重點摘要</div>
+          <div id="voiceSummary" style="font-size:13px;color:var(--text);line-height:1.7"></div>
+        </div>
+
+        <!-- 待辦事項 -->
+        <div id="voiceTodosSection" style="display:none">
+          <div class="section-header"><span class="section-title">✅ 待辦事項</span><span style="font-size:10px;color:var(--text3)">點「加入任務」確認加入</span></div>
+          <div id="voiceTodos" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+        </div>
+
+        <!-- 跟進事項 -->
+        <div id="voiceFollowupsSection" style="display:none">
+          <div class="section-header"><span class="section-title">📌 跟進事項</span></div>
+          <div id="voiceFollowups" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+        </div>
+
+        <!-- 完整文字稿（收合） -->
+        <div style="background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px">
+          <div onclick="toggleTranscript()" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <span style="font-size:11px;font-family:var(--font-mono);color:var(--text3);letter-spacing:.08em">完整文字稿</span>
+            <span id="transcriptArrow" style="color:var(--text3);font-size:12px">▼</span>
+          </div>
+          <div id="voiceTranscriptBody" style="display:none;padding:10px 14px;border-top:.5px solid var(--border)">
+            <div id="voiceFullText" style="font-size:12px;color:var(--text2);line-height:1.8;white-space:pre-wrap"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 不支援提示 -->
+      <div id="voiceNotSupported" style="display:none">
+        <div class="empty">
+          <div class="e-icon">⚠️</div>
+          <p>此瀏覽器不支援語音辨識<br>請使用 Chrome 桌機版或 Android Chrome</p>
+        </div>
+      </div>
+
     </div>
 
     <!-- ── CHAT ── -->
@@ -1205,14 +1297,21 @@ window.sendChat = async () => {
   await logActivity(`AI 對話：${text.slice(0,30)}`, 'chat');
   const typing = appendTyping();
   const taskCtx = (DB.tasks||[]).filter(t=>!t.done).slice(0,5).map(t=>`[${t.cat}] ${t.title}`).join('\n');
-  const sys = `你是專業 AI 工作助理，幫助台灣中小企業管理人員。工作範疇：供應鏈、業務銷售、內部行政。目前任務：\n${taskCtx||'（無）'}\n請用繁體中文，務實直接。緊急狀況給步驟，需要範本直接給完整版。`;
+  const sys = `你是專業 AI 工作助理，幫助台灣中小企業管理人員。工作範疇：供應鏈、業務銷售、內部行政。目前任務：\n${taskCtx||'（無）'}\n請用繁體中文，務實直接。緊急狀況給步驟，需要範本直接給完整版。如果需要查詢最新資訊，請使用 Google 搜尋。`;
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
     const resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ system_instruction:{parts:[{text:sys}]}, contents: chatHistory }) });
+      body: JSON.stringify({
+        system_instruction: { parts:[{text:sys}] },
+        contents: chatHistory,
+        tools: [{ google_search: {} }]
+      })
+    });
     const data = await resp.json();
     if (data.error) throw new Error(data.error.message);
-    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '抱歉，無法取得回應。';
+    // 合併所有 text parts（聯網模式可能有多個 part）
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const aiText = parts.filter(p => p.text).map(p => p.text).join('') || '抱歉，無法取得回應。';
     typing.remove(); appendMsg('ai', aiText);
     chatHistory.push({ role:'model', parts:[{text:aiText}] });
     if (chatHistory.length > 20) chatHistory.splice(0,2);
@@ -1302,6 +1401,226 @@ window.clearAllData = async () => {
   if (!confirm('確定要清除所有任務、供應鏈、業務記錄？\n此動作無法復原。')) return;
   DB.tasks = []; DB.supplyItems = []; DB.salesItems = []; DB.activity = [];
   await saveDB(); showToast('✅ 已清除所有資料');
+};
+
+// ══════════════════════════════════════════════
+// VOICE RECORDING
+// ══════════════════════════════════════════════
+let voiceRecognition = null;
+let voiceTranscript  = '';
+let voiceTimerInterval = null;
+let voiceSeconds = 0;
+
+function voiceInit() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('voiceIdle').style.display = 'none';
+    document.getElementById('voiceNotSupported').style.display = 'block';
+    return;
+  }
+  voiceRecognition = new SR();
+  voiceRecognition.continuous     = true;
+  voiceRecognition.interimResults = true;
+  voiceRecognition.lang           = 'zh-TW';
+
+  voiceRecognition.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        voiceTranscript += e.results[i][0].transcript;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    document.getElementById('voiceLiveText').textContent = voiceTranscript;
+    document.getElementById('voiceInterim').textContent  = interim;
+  };
+
+  voiceRecognition.onerror = (e) => {
+    if (e.error === 'no-speech') return;
+    showToast('⚠️ 語音辨識錯誤：' + e.error);
+    voiceStop();
+  };
+
+  voiceRecognition.onend = () => {
+    // 如果還在錄音中（非主動停止），自動重啟保持連續
+    if (document.getElementById('voiceRecording').style.display !== 'none') {
+      try { voiceRecognition.start(); } catch(_) {}
+    }
+  };
+}
+
+window.voiceStart = () => {
+  if (!voiceRecognition) { voiceInit(); }
+  if (!voiceRecognition) return;
+
+  if (!geminiKey) {
+    showToast('⚠️ 請先設定 Gemini API Key');
+    switchTab('dev'); return;
+  }
+
+  voiceTranscript = '';
+  voiceSeconds    = 0;
+  document.getElementById('voiceLiveText').textContent = '';
+  document.getElementById('voiceInterim').textContent  = '';
+  document.getElementById('voiceIdle').style.display      = 'none';
+  document.getElementById('voiceRecording').style.display = 'block';
+  document.getElementById('voiceResult').style.display    = 'none';
+
+  try { voiceRecognition.start(); } catch(_) {}
+
+  voiceTimerInterval = setInterval(() => {
+    voiceSeconds++;
+    const m = Math.floor(voiceSeconds / 60);
+    const s = String(voiceSeconds % 60).padStart(2, '0');
+    const el = document.getElementById('voiceTimer');
+    if (el) el.textContent = `${m}:${s}`;
+  }, 1000);
+};
+
+window.voiceStop = async () => {
+  clearInterval(voiceTimerInterval);
+  try { voiceRecognition.stop(); } catch(_) {}
+
+  document.getElementById('voiceRecording').style.display   = 'none';
+  document.getElementById('voiceProcessing').style.display  = 'block';
+
+  const text = voiceTranscript.trim();
+  if (!text) {
+    showToast('⚠️ 沒有偵測到語音內容');
+    voiceReset(); return;
+  }
+
+  await voiceAnalyze(text);
+};
+
+window.voiceReset = () => {
+  voiceTranscript = '';
+  clearInterval(voiceTimerInterval);
+  document.getElementById('voiceIdle').style.display       = 'block';
+  document.getElementById('voiceRecording').style.display  = 'none';
+  document.getElementById('voiceProcessing').style.display = 'none';
+  document.getElementById('voiceResult').style.display     = 'none';
+};
+
+async function voiceAnalyze(text) {
+  const prompt = `以下是一段語音的文字稿，請用繁體中文分析並以 JSON 格式回覆（只回 JSON，不要加任何其他文字或markdown）：
+
+{
+  "summary": ["重點1", "重點2", "重點3"],
+  "todos": ["待辦事項1", "待辦事項2"],
+  "followups": ["跟進事項1", "跟進事項2"]
+}
+
+規則：
+- summary：3-5 條重點摘要
+- todos：需要採取行動的事項（沒有就給空陣列）
+- followups：需要追蹤或等待的事項（沒有就給空陣列）
+
+文字稿：
+${text}`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    raw = raw.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(raw);
+    voiceShowResult(text, result);
+  } catch(e) {
+    document.getElementById('voiceProcessing').style.display = 'none';
+    document.getElementById('voiceIdle').style.display = 'block';
+    showToast('⚠️ 分析失敗：' + (e.message || '請稍後再試'));
+  }
+}
+
+function voiceShowResult(transcript, result) {
+  document.getElementById('voiceProcessing').style.display = 'none';
+  document.getElementById('voiceResult').style.display     = 'block';
+
+  // 重點摘要
+  const summary = (result.summary || []);
+  document.getElementById('voiceSummary').innerHTML =
+    summary.length
+      ? summary.map(s => `<div style="padding:3px 0;padding-left:14px;position:relative"><span style="position:absolute;left:2px;color:var(--accent);font-weight:700">·</span>${esc(s)}</div>`).join('')
+      : '<span style="color:var(--text3)">無重點摘要</span>';
+
+  // 待辦事項
+  const todos = result.todos || [];
+  const todosSection = document.getElementById('voiceTodosSection');
+  const todosEl = document.getElementById('voiceTodos');
+  if (todos.length) {
+    todosSection.style.display = '';
+    todosEl.innerHTML = todos.map((t, i) => `
+      <div class="voice-todo-card" id="vtodo-${i}">
+        <div class="voice-todo-text">${esc(t)}</div>
+        <button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="voiceAddTask(${i}, '${esc(t).replace(/'/g,"\\'")}')">加入任務</button>
+      </div>`).join('');
+  } else {
+    todosSection.style.display = 'none';
+  }
+
+  // 跟進事項
+  const followups = result.followups || [];
+  const fuSection = document.getElementById('voiceFollowupsSection');
+  const fuEl = document.getElementById('voiceFollowups');
+  if (followups.length) {
+    fuSection.style.display = '';
+    fuEl.innerHTML = followups.map((f, i) => `
+      <div class="voice-todo-card" id="vfu-${i}">
+        <div class="voice-todo-text">${esc(f)}</div>
+        <button class="btn btn-ghost btn-sm" style="flex-shrink:0;color:var(--blue);border-color:var(--blue)" onclick="voiceAddFollowup(${i}, '${esc(f).replace(/'/g,"\\'")}')">加入追蹤</button>
+      </div>`).join('');
+  } else {
+    fuSection.style.display = 'none';
+  }
+
+  // 文字稿
+  document.getElementById('voiceFullText').textContent = transcript;
+
+  // 記錄活動
+  logActivity(`語音分析：${transcript.slice(0, 30)}…`, 'chat');
+}
+
+window.voiceAddTask = async (i, text) => {
+  const card = document.getElementById(`vtodo-${i}`);
+  if (!card || card.classList.contains('added')) return;
+  const cat = autoCategory(text);
+  const pri = autoUrgency(text);
+  DB.tasks.unshift({ id: genId('t'), title: text, cat, pri, done: false, shared: false, ts: now(), updatedAt: now() });
+  await logActivity(`語音新增任務：${text.slice(0, 30)}`, cat);
+  await saveDB();
+  card.classList.add('added');
+  card.querySelector('button').textContent = '✓ 已加入';
+  card.querySelector('button').disabled = true;
+  showToast('✅ 已加入任務');
+};
+
+window.voiceAddFollowup = async (i, text) => {
+  const card = document.getElementById(`vfu-${i}`);
+  if (!card || card.classList.contains('added')) return;
+  DB.supplyItems.unshift({ id: genId('s'), title: `【跟進】${text}`, done: false, ts: now() });
+  await saveDB();
+  card.classList.add('added');
+  card.querySelector('button').textContent = '✓ 已加入';
+  card.querySelector('button').disabled = true;
+  showToast('✅ 已加入供應鏈追蹤');
+};
+
+window.toggleTranscript = () => {
+  const body  = document.getElementById('voiceTranscriptBody');
+  const arrow = document.getElementById('transcriptArrow');
+  const open  = body.style.display === 'block';
+  body.style.display  = open ? 'none' : 'block';
+  arrow.style.transform = open ? '' : 'rotate(180deg)';
 };
 
 // ══════════════════════════════════════════════
